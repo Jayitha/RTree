@@ -115,7 +115,16 @@ public:
              std::function<bool(const DATATYPE &)> callback) const;
 
   /// Checks if search bounding rect is contained in some element in RTree
-  bool Subsumes(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDIMS]) const;
+  bool Subsumes(const ELEMTYPE a_min[NUMDIMS],
+                const ELEMTYPE a_max[NUMDIMS]) const;
+
+  /// Retrieves all points in specified range
+  std::vector<DATATYPE> Range(const ELEMTYPE a_min[NUMDIMS],
+                              const ELEMTYPE a_max[NUMDIMS]) const;
+
+  /// Retrieves all elements that are subsumed by provided rectangle
+  std::vector<DATATYPE> Subsumed(const ELEMTYPE a_min[NUMDIMS],
+                                 const ELEMTYPE a_max[NUMDIMS]) const;
 
   /// Remove all entries from tree
   void RemoveAll();
@@ -365,6 +374,10 @@ protected:
   bool Search(Node *a_node, Rect *a_rect, int &a_foundCount,
               std::function<bool(const DATATYPE &)> callback) const;
   bool Subsumes(Node *a_node, Rect *a_rect) const;
+  void Range(Node *a_node, Rect *a_rect,
+             std::vector<DATATYPE> &rangeResults) const;
+  void Subsumed(Node *a_node, Rect *a_rect,
+                std::vector<DATATYPE> &subsumedElements) const;
   void RemoveAllRec(Node *a_node);
   void Reset();
   void CountRec(Node *a_node, int &a_count);
@@ -536,8 +549,8 @@ int RTREE_QUAL::Search(const ELEMTYPE a_min[NUMDIMS],
 }
 
 RTREE_TEMPLATE
-bool RTREE_QUAL::Subsumes(
-    const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDIMS]) const {
+bool RTREE_QUAL::Subsumes(const ELEMTYPE a_min[NUMDIMS],
+                          const ELEMTYPE a_max[NUMDIMS]) const {
 #ifdef _DEBUG
   for (int index = 0; index < NUMDIMS; ++index) {
     ASSERT(a_min[index] <= a_max[index]);
@@ -555,6 +568,54 @@ bool RTREE_QUAL::Subsumes(
   // number of found elements here.
 
   return Subsumes(m_root, &rect);
+}
+
+RTREE_TEMPLATE
+std::vector<DATATYPE> RTREE_QUAL::Range(const ELEMTYPE a_min[NUMDIMS],
+                                        const ELEMTYPE a_max[NUMDIMS]) const {
+#ifdef _DEBUG
+  for (int index = 0; index < NUMDIMS; ++index) {
+    ASSERT(a_min[index] <= a_max[index]);
+  }
+#endif //_DEBUG
+
+  Rect rect;
+
+  for (int axis = 0; axis < NUMDIMS; ++axis) {
+    rect.m_min[axis] = a_min[axis];
+    rect.m_max[axis] = a_max[axis];
+  }
+
+  // NOTE: May want to return search result another way, perhaps returning the
+  // number of found elements here.
+  std::vector<DATATYPE> rangeResults;
+  Range(m_root, &rect, rangeResults);
+  return rangeResults;
+}
+
+RTREE_TEMPLATE
+std::vector<DATATYPE>
+RTREE_QUAL::Subsumed(const ELEMTYPE a_min[NUMDIMS],
+                     const ELEMTYPE a_max[NUMDIMS]) const {
+
+#ifdef _DEBUG
+  for (int index = 0; index < NUMDIMS; ++index) {
+    ASSERT(a_min[index] <= a_max[index]);
+  }
+#endif //_DEBUG
+
+  Rect rect;
+
+  for (int axis = 0; axis < NUMDIMS; ++axis) {
+    rect.m_min[axis] = a_min[axis];
+    rect.m_max[axis] = a_max[axis];
+  }
+
+  // NOTE: May want to return search result another way, perhaps returning the
+  // number of found elements here.
+  std::vector<DATATYPE> subsumedElements;
+  Subsumed(m_root, &rect, subsumedElements);
+  return subsumedElements;
 }
 
 RTREE_TEMPLATE
@@ -1448,7 +1509,8 @@ bool RTREE_QUAL::Subsumes(Rect *a_rectA, Rect *a_rectB) const {
   ASSERT(a_rectA && a_rectB);
 
   for (int index = 0; index < NUMDIMS; ++index) {
-    if(!(a_rectA->m_min[index] <= a_rectB->m_min[index] && a_rectB->m_max[index] <= a_rectA->m_max[index]))
+    if (!(a_rectA->m_min[index] <= a_rectB->m_min[index] &&
+          a_rectB->m_max[index] <= a_rectA->m_max[index]))
       return false;
   }
   return true;
@@ -1477,7 +1539,7 @@ bool RTREE_QUAL::Search(Node *a_node, Rect *a_rect, int &a_foundCount,
   if (a_node->IsInternalNode()) {
     // This is an internal node in the tree
     for (int index = 0; index < a_node->m_count; ++index) {
-      if (Overlap(a_rect, &a_node->m_branch[index].m_rect)) {
+      if (Subsumes(&a_node->m_branch[index].m_rect, a_rect)) {
         if (!Search(a_node->m_branch[index].m_child, a_rect, a_foundCount,
                     callback)) {
           // The callback indicated to stop searching
@@ -1488,7 +1550,7 @@ bool RTREE_QUAL::Search(Node *a_node, Rect *a_rect, int &a_foundCount,
   } else {
     // This is a leaf node
     for (int index = 0; index < a_node->m_count; ++index) {
-      if (Overlap(a_rect, &a_node->m_branch[index].m_rect)) {
+      if (Subsumes(a_rect, &a_node->m_branch[index].m_rect)) {
         DATATYPE &id = a_node->m_branch[index].m_data;
         ++a_foundCount;
 
@@ -1502,12 +1564,10 @@ bool RTREE_QUAL::Search(Node *a_node, Rect *a_rect, int &a_foundCount,
   return true; // Continue searching
 }
 
-// TODO: Modify to check if rectangle (a_rect) is subsumed.
 // Search in an index tree or subtree for all data retangles that overlap the
 // argument rectangle.
 RTREE_TEMPLATE
-bool RTREE_QUAL::Subsumes(
-    Node *a_node, Rect *a_rect) const {
+bool RTREE_QUAL::Subsumes(Node *a_node, Rect *a_rect) const {
   ASSERT(a_node);
   ASSERT(a_node->m_level >= 0);
   ASSERT(a_rect);
@@ -1523,11 +1583,56 @@ bool RTREE_QUAL::Subsumes(
     for (int index = 0; index < a_node->m_count; ++index) {
       if (Subsumes(&a_node->m_branch[index].m_rect, a_rect)) {
         return true;
-
       }
     }
   }
   return false;
+}
+
+RTREE_TEMPLATE
+void RTREE_QUAL::Range(Node *a_node, Rect *a_rect,
+                       std::vector<DATATYPE> &rangeResults) const {
+  ASSERT(a_node);
+  ASSERT(a_node->m_level >= 0);
+  ASSERT(a_rect);
+
+  if (a_node->IsInternalNode()) {
+    // This is an internal node in the tree
+    for (int index = 0; index < a_node->m_count; ++index) {
+      if (Overlap(a_rect, &a_node->m_branch[index].m_rect))
+        Range(a_node->m_branch[index].m_child, a_rect, rangeResults);
+    }
+  } else {
+    // This is a leaf node
+    for (int index = 0; index < a_node->m_count; ++index) {
+      if (Overlap(&a_node->m_branch[index].m_rect, a_rect)) {
+        rangeResults.emplace_back(a_node->m_branch[index].m_data);
+      }
+    }
+  }
+}
+
+RTREE_TEMPLATE
+void RTREE_QUAL::Subsumed(Node *a_node, Rect *a_rect,
+                          std::vector<DATATYPE> &subsumedElements) const {
+  ASSERT(a_node);
+  ASSERT(a_node->m_level >= 0);
+  ASSERT(a_rect);
+
+  if (a_node->IsInternalNode()) {
+    // This is an internal node in the tree
+    for (int index = 0; index < a_node->m_count; ++index) {
+      if (Overlap(&a_node->m_branch[index].m_rect, a_rect))
+        Subsumed(a_node->m_branch[index].m_child, a_rect, subsumedElements);
+    }
+  } else {
+    // This is a leaf node
+    for (int index = 0; index < a_node->m_count; ++index) {
+      if (Subsumes(a_rect, &a_node->m_branch[index].m_rect)) {
+        subsumedElements.emplace_back(a_node->m_branch[index].m_data);
+      }
+    }
+  }
 }
 
 RTREE_TEMPLATE
