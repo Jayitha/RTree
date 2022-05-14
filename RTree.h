@@ -17,7 +17,6 @@
 
 namespace RT {
 
-#define NELEMS(x)  (sizeof(x) / sizeof((x)[0]))
 
 #define ASSERT assert // RTree uses ASSERT( condition )
 #ifndef Min
@@ -195,8 +194,6 @@ public:
     /// Get the bounds for this node
     void GetBounds(ELEMTYPE a_min[], ELEMTYPE a_max[]) {
       ASSERT(IsNotNull());
-      ASSERT(NELEMS(a_min) == NUMDIMS);
-      ASSERT(NELEMS(a_max) == NUMDIMS);
 
       StackElement &curTos = m_stack[m_tos - 1];
       Branch &curBranch = curTos.m_node->m_branch[curTos.m_branchIndex];
@@ -306,7 +303,6 @@ protected:
     ELEMTYPE *m_max; ///< Max dimensions of bounding box
 
     Rect(const ELEMTYPE *a_min, const ELEMTYPE *a_max) {
-      ASSERT(NELEMS(a_min) == NUMDIMS && NELEMS(a_max) == NUMDIMS);
 
       m_min = new ELEMTYPE[NUMDIMS];
       m_max = new ELEMTYPE[NUMDIMS];
