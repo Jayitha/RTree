@@ -8,6 +8,7 @@
 #include "RTree.h"
 
 using namespace std;
+using namespace RT;
 
 typedef int ValueType;
 
@@ -51,7 +52,8 @@ bool MySearchCallback(ValueType id)
 
 int main()
 {
-  typedef RTree<ValueType, int, 2, float> MyTree;
+  NUMDIMS = 2;
+  typedef RTree<ValueType, int, float> MyTree;
   MyTree tree;
 
   int i, nhits;

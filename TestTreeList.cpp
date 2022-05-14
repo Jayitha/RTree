@@ -2,6 +2,7 @@
 #include "RTree.h"
 
 using namespace std;
+using namespace RT;
 
 typedef int ValueType;
 
@@ -42,7 +43,8 @@ int nrects = sizeof(rects) / sizeof(rects[0]);
 
 int main()
 {
-  typedef RTree<ValueType, int, 2, float, 4> MyTree;
+  NUMDIMS = 2;
+  typedef RTree<ValueType, int, float, 4> MyTree;
   MyTree tree;
 
   for(int i=0; i<nrects; i++)

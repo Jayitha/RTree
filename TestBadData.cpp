@@ -9,6 +9,7 @@
 #include "RTree.h"
 
 using namespace std;
+using namespace RT;
 
 typedef int ValueType;
 typedef long long CoordType;
@@ -41,6 +42,7 @@ bool MySearchCallback(ValueType id)
 
 int main( int argc, char* argv[] )
 {
+  NUMDIMS = 2;
   if ( argc < 2 ) {
      std::cout << "Usage: " << argv[0] << " inFile\n";
      return -1;
@@ -62,7 +64,7 @@ int main( int argc, char* argv[] )
      }
   }
 
-  typedef RTree<ValueType, CoordType, 2, float> MyTree;
+  typedef RTree<ValueType, CoordType, float> MyTree;
   MyTree tree;
 
   unsigned int i, nhits;
